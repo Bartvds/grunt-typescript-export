@@ -1,4 +1,4 @@
-/// <reference path="../typings/dummy.d.ts" />
+/// <reference path="../../typings/dummy.d.ts" />
 
 declare module "foo" {
 

@@ -1,6 +1,7 @@
-/// <reference path="../d.ts/DefinitelyTyped/node/node.d.ts" />
-import events = require('events');
-export declare class Foo extends events.EventEmitter {
+/// <reference path="../typings/dummy.d.ts" />
+
+import dummy = require('dummy');
+export declare class Foo extends dummy.Dummy {
     constructor(input, output);
     public send(message): void;
 }

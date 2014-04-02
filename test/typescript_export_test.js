@@ -1,39 +1,17 @@
 'use strict';
 
 var grunt = require('grunt');
+var assert = require('assert');
 
-/*
-  ======== A Handy Little Nodeunit Reference ========
-  https://github.com/caolan/nodeunit
-
-  Test methods:
-    test.expect(numAssertions)
-    test.done()
-  Test assertions:
-    test.ok(value, [message])
-    test.equal(actual, expected, [message])
-    test.notEqual(actual, expected, [message])
-    test.deepEqual(actual, expected, [message])
-    test.notDeepEqual(actual, expected, [message])
-    test.strictEqual(actual, expected, [message])
-    test.notStrictEqual(actual, expected, [message])
-    test.throws(block, [error], [message])
-    test.doesNotThrow(block, [error], [message])
-    test.ifError(value)
-*/
-
-exports.typescript_export = {
-  setUp: function(done) {
-    // setup here if necessary
-    done();
-  },
-  default_options: function(test) {
-    test.expect(1);
-
-    var actual = grunt.file.read('tmp/first.d.ts');
-    var expected = grunt.file.read('test/expected/first.d.ts');
-    test.equal(actual, expected, 'should match the expected first.d.ts');
-
-    test.done();
-  },
-};
+describe('export', function () {
+  it('first', function () {
+    var actual = grunt.file.read('test/tmp/first.d.ts').replace(/\r?\n/g, '\n');
+    var expected = grunt.file.read('test/expected/first.d.ts').replace(/\r?\n/g, '\n');
+    assert.strictEqual(actual, expected, 'should match the expected first.d.ts');
+  });
+  it('first nested', function () {
+    var actual = grunt.file.read('test/tmp/nested/first-nested.d.ts').replace(/\r?\n/g, '\n');
+    var expected = grunt.file.read('test/expected/first-nested.d.ts').replace(/\r?\n/g, '\n');
+    assert.strictEqual(actual, expected, 'should match the expected first-nested.d.ts');
+  });
+});

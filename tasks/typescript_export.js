@@ -1,17 +1,45 @@
 'use strict';
 
-module.exports = function(grunt) {
+module.exports = function (grunt) {
+  var path = require('path');
+  var referenceTagExp = /\/\/\/ <reference path=["']?([\w\.\/_-]*)["']? *\/>/g;
 
-  grunt.registerMultiTask('typescript_export', 'Concat all .d.ts into a single file for external clients to import.', function() {
+  function parseRef(str, baseDir) {
+    referenceTagExp.lastIndex = 0;
+    var match = referenceTagExp.exec(str);
+    if (match) {
+      if (typeof baseDir === 'string') {
+        return path.resolve(baseDir, match[1]);
+      }
+      return path.resolve(match[1]);
+    }
+    return null;
+  }
+
+  function serialiseRef(target, baseDir) {
+    if (typeof baseDir === 'string') {
+      target = path.relative(baseDir, target);
+    }
+    return '/// <reference path="' + target.replace(/\\/g, '/') + '" />';
+  }
+
+  grunt.registerMultiTask('typescript_export', 'Concat all .d.ts into a single file for external clients to import.', function () {
     grunt.config.requires('pkg.name');
-    var packageName = grunt.config('pkg.name');
+    var options = this.options({
+      packageName: grunt.config('pkg.name') || 'namespace',
+      indent: '    ',
+      newLine: '\n'
+    });
 
-    this.files.forEach(function(group) {
+    this.files.forEach(function (group) {
       var snippets = [];
       var references = [];
       var imports = [];
       var sources = [];
       var localImportsToStrip = [];
+      var dest = path.resolve(group.dest);
+      var indent = options.indent;
+      var baseDir = path.dirname(dest);
 
       grunt.file.expand(group.src).forEach(function (file) {
         if (!grunt.file.exists(file)) {
@@ -19,17 +47,21 @@ module.exports = function(grunt) {
           return;
         }
 
-        var lines = grunt.file.read(file).trim().split("\n");
-        lines = lines.filter(function(line) {
+        var lines = grunt.file.read(file).trim().split(/\r?\n/g);
+        lines = lines.filter(function (line) {
           if (line.match(/<reference/)) {
-            line = line.replace(/(<reference path=")\.\.\//g, '$1./');
-            if (references.indexOf(line) === -1) {
-              references.push(line);
+            var ref = parseRef(line, path.dirname(file));
+            if (!ref) {
+              throw new Error('Source file "' + line + '" not found.');
+            }
+            if (references.indexOf(ref) === -1) {
+              references.push(ref);
             }
             return false;
-          } else if (line.match(/^import /)) {
-            var m;
-            if (m = line.match(/^import (\w+) = require\('.\//)) {
+          }
+          if (line.match(/^import /)) {
+            var m = line.match(/^import (\w+) = require\(['"].\//)
+            if (m) {
               var name = m[1];
               grunt.log.writeln('File "' + file + '" imports local module "' + name + '"');
               if (localImportsToStrip.indexOf(name) === -1) {
@@ -41,50 +73,49 @@ module.exports = function(grunt) {
               }
             }
             return false;
-          } else {
-            return true;
           }
+          return true;
         });
 
-        var content = lines.join("\n") + "\n";
+        var content = indent + lines.join(options.newLine + indent).trim();
         content = content.replace(/ declare /g, ' ').replace(/\bdeclare /g, '');
 
         sources.push({ content: content, file: file });
       });
 
-      sources.forEach(function(source) {
-        localImportsToStrip.forEach(function(name) {
+      sources.forEach(function (source) {
+        localImportsToStrip.forEach(function (name) {
           var re = new RegExp('\\b' + name + '\\.');
           source.content = source.content.replace(re, '');
         });
       });
 
       if (references.length > 0) {
-        references.forEach(function(line) {
-          snippets.push(line + "\n");
+        references.forEach(function (ref) {
+          snippets.push(serialiseRef(ref, baseDir));
         });
-        snippets.push("\n");
+        snippets.push('');
       }
 
-      snippets.push('declare module "' + packageName + '" {\n\n');
+      snippets.push('declare module "' + options.packageName + '" {');
+      snippets.push('');
 
       if (imports.length > 0) {
-        imports.forEach(function(line) {
-          snippets.push(line + "\n");
+        imports.forEach(function (line) {
+          snippets.push(indent + line);
         });
-        snippets.push("\n");
+        snippets.push('');
       }
 
-      sources.forEach(function(source) {
-        snippets.push("// " + source.file + "\n");
+      sources.forEach(function (source) {
+        snippets.push(indent + '// ' + source.file);
         snippets.push(source.content);
-        snippets.push("\n");
+        snippets.push('');
       });
-      snippets.push('}\n');
+      snippets.push('}');
 
-      grunt.file.write(group.dest, snippets.join(''));
-      grunt.log.writeln('File "' + group.dest + '" created.');
+      grunt.file.write(dest, snippets.join(options.newLine) + options.newLine);
+      grunt.log.writeln('File "' + path.relative(process.cwd(), dest) + '" created.');
     });
   });
-
 };
