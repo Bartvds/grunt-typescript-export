@@ -2,6 +2,15 @@
 
 Generates a single `index.d.ts` file for your NPM package implemented in TypeScript by concatenating per-file d.ts files, wrapping them all into an implicit module declaration and rewriting/moving some lines.
 
+---
+
+
+### :warning: Use with caution :warning: 
+
+bad results on imports, nested modules, single exports, generics or ambient declarations
+
+---
+
 Produces something like this:
 
 ```typescript
